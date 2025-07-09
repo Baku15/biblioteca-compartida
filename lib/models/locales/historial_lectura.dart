@@ -1,28 +1,28 @@
 class HistorialLectura {
-  final int id;
+  final int? id;
   final int libroId;
-  final int paginaLeida;
-  final DateTime fecha;
+  final int ultimaPagina;
+  final DateTime fechaActualizacion;
 
   HistorialLectura({
-    required this.id,
+    this.id,
     required this.libroId,
-    required this.paginaLeida,
-    required this.fecha,
+    required this.ultimaPagina,
+    required this.fechaActualizacion,
   });
 
   Map<String, dynamic> toMap() => {
         'id': id,
-        'libroId': libroId,
-        'paginaLeida': paginaLeida,
-        'fecha': fecha.toIso8601String(),
+        'libro_id': libroId,
+        'ultima_pagina': ultimaPagina,
+        'fecha_actualizacion': fechaActualizacion.toIso8601String(),
       };
 
   factory HistorialLectura.fromMap(Map<String, dynamic> map) =>
       HistorialLectura(
         id: map['id'],
-        libroId: map['libroId'],
-        paginaLeida: map['paginaLeida'],
-        fecha: DateTime.parse(map['fecha']),
+        libroId: map['libro_id'],
+        ultimaPagina: map['ultima_pagina'],
+        fechaActualizacion: DateTime.parse(map['fecha_actualizacion']),
       );
 }

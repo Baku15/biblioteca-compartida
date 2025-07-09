@@ -3,7 +3,11 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_libros/data/local/historial_lectura_datasource.dart';
+import 'package:flutter_libros/data/local/nota_lectura_datasource.dart';
 import 'package:flutter_libros/data/sincronizacion/sincronizar_libros.dart';
+import 'package:flutter_libros/models/locales/historial_lectura.dart';
+import 'package:flutter_libros/models/locales/nota_lectura.dart';
 import 'package:intl/intl.dart';
 import '../../../data/local/libro_local_datasource.dart';
 import '../../../models/locales/libro_local.dart';
@@ -36,7 +40,7 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
   }
 
   Future<void> _mostrarDetallesLibro(
-      BuildContext context, LibroLocal libro) async {
+      BuildContext contextGlobal, LibroLocal libro) async {
     await initializeDateFormatting('es', null);
     final formatoFecha = DateFormat('d MMMM yyyy', 'es');
     final fechaTexto = formatoFecha.format(libro.fechaCreacion);
@@ -49,6 +53,11 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
       'fantasía': Icons.auto_stories,
       'otros': Icons.bookmark_outline,
     };
+
+    Future<List<NotaLectura>> _obtenerNotas(int libroId) async {
+      final notaDataSource = NotaLecturaDataSource();
+      return await notaDataSource.obtenerNotasPorLibro(libroId);
+    }
 
     String categoria = libro.categoria.toLowerCase();
     IconData icono = iconoCategoria[categoria] ?? Icons.book;
@@ -133,6 +142,94 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
+
+                  // Boton de Notas
+                  const SizedBox(height: 16),
+                  FutureBuilder<List<NotaLectura>>(
+                    future: _obtenerNotas(libro.id),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return const Text("📌 No hay notas aún");
+                      }
+                      final notas = snapshot.data!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("📝 Notas de lectura:",
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          ...notas.map((nota) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text("Pág. ${nota.pagina}"),
+                                subtitle: Text(nota.contenido),
+                                trailing: Text(
+                                    DateFormat('dd/MM/yyyy').format(nota.fecha),
+                                    style: const TextStyle(fontSize: 12)),
+                              )),
+                        ],
+                      );
+                    },
+                  ),
+
+                  // Boton para AGREGAR UNA NUEVA NOTA
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.note_add),
+                    label: const Text("Agregar nota"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.lightBlueAccent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(context); // cerrar el diálogo actual
+
+                      // Esperamos un pequeño microtask antes de usar context del padre
+                      await Future.delayed(Duration.zero);
+
+                      final resultado = await Navigator.pushNamed(
+                        contextGlobal, // Usamos el contexto padre
+                        '/agregar_nota',
+                        arguments: libro.id,
+                      );
+
+                      if (resultado == true) {
+                        _mostrarDetallesLibro(contextGlobal,
+                            libro); // volvemos a mostrar el diálogo
+                      }
+                    },
+                  ),
+
+                  // Historial boton
+                  FutureBuilder<HistorialLectura?>(
+                    future: HistorialLecturaDataSource()
+                        .obtenerHistorialPorLibro(libro.id),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const SizedBox();
+                      final hist = snapshot.data!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 16),
+                          Text("📖 Última página leída: ${hist.ultimaPagina}",
+                              style: const TextStyle(fontSize: 15)),
+                          Text(
+                              "⏱ Actualizado: ${DateFormat('dd/MM/yyyy').format(hist.fechaActualizacion)}",
+                              style: const TextStyle(
+                                  fontSize: 13, color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: () =>
+                                _actualizarHistorialLectura(libro.id),
+                            icon: const Icon(Icons.edit),
+                            label: const Text("Actualizar progreso"),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  // Codigo de cerrar boton
                   const SizedBox(height: 20),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -313,6 +410,7 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
 
   Future<void> _sincronizarConNube() async {
     final librosLocales = await _dataSource.getLibros();
+    final notasDataSource = NotaLecturaDataSource();
 
     for (final libro in librosLocales) {
       final libroData = {
@@ -328,28 +426,94 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
         'fechaCreacion': libro.fechaCreacion.toIso8601String(),
       };
 
+      String remoteLibroId;
+
       if (libro.remoteId != null && libro.remoteId!.isNotEmpty) {
-        // Ya está sincronizado → actualiza
+        // Ya sincronizado → actualizar
+        remoteLibroId = libro.remoteId!;
         await FirebaseFirestore.instance
             .collection('libros_compartidos')
-            .doc(libro.remoteId)
+            .doc(remoteLibroId)
             .set(libroData);
       } else {
-        // Primera sincronización → agrega y guarda ID
+        // Primera sincronización → agregar y guardar ID
         final docRef = await FirebaseFirestore.instance
             .collection('libros_compartidos')
             .add(libroData);
 
-        await _dataSource.actualizarRemoteId(libro.id, docRef.id);
+        remoteLibroId = docRef.id;
+        await _dataSource.actualizarRemoteId(libro.id, remoteLibroId);
+      }
+
+      // 🔁 Sincronizar notas de este libro
+      final notas = await notasDataSource.obtenerNotasPorLibro(libro.id);
+      for (final nota in notas) {
+        if (nota.remoteId != null && nota.remoteId!.isNotEmpty) continue;
+
+        final notaData = {
+          'pagina': nota.pagina,
+          'contenido': nota.contenido,
+          'fecha': nota.fecha.toIso8601String(),
+        };
+
+        final notaDocRef = await FirebaseFirestore.instance
+            .collection('libros_compartidos')
+            .doc(remoteLibroId)
+            .collection('notas')
+            .add(notaData);
+
+        if (nota.id != null) {
+          await notasDataSource.actualizarRemoteId(nota.id!, notaDocRef.id);
+        }
       }
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('✅ Libros sincronizados sin duplicados'),
+        content: const Text('✅ Libros y notas sincronizados'),
         backgroundColor: Colors.green.withOpacity(0.95),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  Future<void> _actualizarHistorialLectura(int libroId) async {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("📖 Actualizar progreso de lectura"),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: "Última página leída"),
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancelar"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: const Text("Guardar"),
+            onPressed: () async {
+              final pagina = int.tryParse(controller.text);
+              if (pagina != null) {
+                final historial = HistorialLectura(
+                  libroId: libroId,
+                  ultimaPagina: pagina,
+                  fechaActualizacion: DateTime.now(),
+                );
+                await HistorialLecturaDataSource().guardarHistorial(historial);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text("✅ Progreso actualizado"),
+                ));
+              }
+            },
+          ),
+        ],
       ),
     );
   }

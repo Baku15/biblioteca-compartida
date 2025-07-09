@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_libros/models/locales/libro_local.dart';
 import 'package:flutter_libros/presentation/screens/agregar_libro_screen.dart';
+import 'package:flutter_libros/presentation/screens/agregar_nota_screen.dart';
 import 'package:flutter_libros/presentation/screens/detalle_libro_compartido_screen.dart';
 import 'package:flutter_libros/presentation/screens/editar_libro_screen.dart';
 import 'package:flutter_libros/presentation/screens/explorar_libros_screen.dart';
@@ -39,6 +40,10 @@ class MyApp extends ConsumerWidget {
       ),
       // 👇 RUTAS REGISTRADAS AQUÍ
       routes: {
+        '/agregar_nota': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as int;
+          return AgregarNotaScreen(libroId: args);
+        },
         '/explorar': (context) => const ExplorarLibrosScreen(),
         '/detalle_libro_compartido': (context) {
           final args =

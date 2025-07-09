@@ -1,7 +1,6 @@
 import 'package:flutter_libros/models/locales/libro_local.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../../../models/libro.dart';
 
 class LibroLocalDataSource {
   static final LibroLocalDataSource _instance =
@@ -68,6 +67,28 @@ class LibroLocalDataSource {
 
 )
     ''');
+
+    await db.execute('''
+  CREATE TABLE notas_lectura (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    libro_id INTEGER,
+    pagina INTEGER,
+    contenido TEXT,
+    fecha TEXT,
+    remote_id TEXT,
+    FOREIGN KEY(libro_id) REFERENCES libros_locales(id)
+  )
+''');
+
+    await db.execute('''
+    CREATE TABLE historial_lectura (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      libro_id INTEGER,
+      ultima_pagina INTEGER,
+      fecha_actualizacion TEXT,
+      FOREIGN KEY(libro_id) REFERENCES libros_locales(id)
+    )
+  ''');
   }
 
   Future<int> insertLibro(LibroLocal libro) async {
