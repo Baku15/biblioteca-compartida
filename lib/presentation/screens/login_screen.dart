@@ -94,16 +94,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         _emailController.text.trim(),
                                         _passwordController.text.trim(),
                                       );
+                                      if (!mounted)
+                                        return; // <-- Verificamos aquí también
                                       Navigator.pushReplacement(
                                         context,
                                         MaterialPageRoute(
                                             builder: (_) => const HomeScreen()),
                                       );
                                     } catch (e) {
+                                      if (!mounted) return;
                                       showCustomSnackbar(
                                           context, 'Error: ${e.toString()}',
                                           isError: true);
                                     } finally {
+                                      if (!mounted) return;
                                       setState(() => _loading = false);
                                     }
                                   }

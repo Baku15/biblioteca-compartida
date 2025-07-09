@@ -10,6 +10,7 @@ class LibroLocal {
   final int? calificacion;
   final String? resena;
   final String? remoteId;
+  final String usuarioId;
 
   LibroLocal({
     required this.id,
@@ -23,6 +24,7 @@ class LibroLocal {
     this.calificacion,
     this.resena,
     this.remoteId,
+    required this.usuarioId,
   });
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -35,7 +37,8 @@ class LibroLocal {
         'estadoLectura': estadoLectura,
         'calificacion': calificacion,
         'resena': resena,
-        'remote_id': remoteId, // ✅ clave corregida
+        'remote_id': remoteId,
+        'usuarioId': usuarioId,
       };
 
   factory LibroLocal.fromMap(Map<String, dynamic> map) => LibroLocal(
@@ -49,7 +52,8 @@ class LibroLocal {
         estadoLectura: map['estadoLectura'] ?? 'Quiero leer',
         calificacion: map['calificacion'],
         resena: map['resena'],
-        remoteId: map['remote_id'], // ✅ clave corregida
+        remoteId: map['remote_id'],
+        usuarioId: map['usuarioId'],
       );
 
   LibroLocal copyWith({
@@ -64,6 +68,7 @@ class LibroLocal {
     int? calificacion,
     String? resena,
     String? remoteId,
+    String? usuarioId,
   }) {
     return LibroLocal(
       id: id ?? this.id,
@@ -77,6 +82,7 @@ class LibroLocal {
       calificacion: calificacion ?? this.calificacion,
       resena: resena ?? this.resena,
       remoteId: remoteId ?? this.remoteId,
+      usuarioId: usuarioId ?? this.usuarioId,
     );
   }
 }

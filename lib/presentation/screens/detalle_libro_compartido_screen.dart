@@ -1,11 +1,48 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_libros/presentation/widgets/comentarios_widget.dart';
 
 class DetalleLibroCompartidoScreen extends StatelessWidget {
   final DocumentSnapshot libro;
 
   const DetalleLibroCompartidoScreen({super.key, required this.libro});
+
+  Widget _buildImagen() {
+    final imagenUrl = libro['imagenUrl'] as String?;
+
+    if (imagenUrl == null || imagenUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    if (imagenUrl.startsWith('http')) {
+      // URL válida, carga con Image.network
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          imagenUrl,
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else if (File(imagenUrl).existsSync()) {
+      // Ruta local válida, carga con Image.file
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          File(imagenUrl),
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else {
+      // No es ruta ni URL válida → no muestra nada
+      return const SizedBox.shrink();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,16 +57,7 @@ class DetalleLibroCompartidoScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            if (libro['imagenUrl'] != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  libro['imagenUrl'],
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
+            _buildImagen(), // Aquí se muestra la imagen correctamente
             const SizedBox(height: 20),
 
             /// Título
@@ -95,38 +123,7 @@ class DetalleLibroCompartidoScreen extends StatelessWidget {
             const Text("💬 Comentarios", style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
 
-            SizedBox(
-              height: 300, // Altura fija para permitir scroll de comentarios
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('libros_compartidos')
-                    .doc(libroId)
-                    .collection('comentarios')
-                    .orderBy('fecha', descending: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData)
-                    return const CircularProgressIndicator();
-                  final comentarios = snapshot.data!.docs;
-                  if (comentarios.isEmpty) {
-                    return const Center(child: Text("Sin comentarios aún."));
-                  }
-                  return ListView.builder(
-                    itemCount: comentarios.length,
-                    itemBuilder: (context, index) {
-                      final com = comentarios[index];
-                      return ListTile(
-                        title: Text(com['contenido']),
-                        subtitle: Text("👤 ${com['usuario']}"),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 12),
-            ComentarioInput(libroId: libroId),
+            ComentariosWidget(libroId: libroId),
             const SizedBox(height: 20),
           ],
         ),
@@ -147,19 +144,49 @@ class _ComentarioInputState extends State<ComentarioInput> {
   final _controller = TextEditingController();
 
   Future<void> _enviarComentario() async {
-    if (_controller.text.trim().isEmpty) return;
+    final contenido = _controller.text.trim();
+    if (contenido.isEmpty) return;
 
-    await FirebaseFirestore.instance
-        .collection('libros_compartidos')
-        .doc(widget.libroId)
-        .collection('comentarios')
-        .add({
-      'contenido': _controller.text.trim(),
-      'usuario': 'Anónimo', // ⚠️ Aquí debes usar FirebaseAuth para nombre real
-      'fecha': DateTime.now(),
-    });
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
 
-    _controller.clear();
+    try {
+      // Guardar comentario
+      await FirebaseFirestore.instance
+          .collection('libros_compartidos')
+          .doc(widget.libroId)
+          .collection('comentarios')
+          .add({
+        'contenido': contenido,
+        'usuario': currentUser.email ?? 'Anónimo',
+        'usuarioId': currentUser.uid,
+        'fecha': DateTime.now(),
+      });
+
+      // Obtener el libro para saber quién es el creador
+      final libroSnap = await FirebaseFirestore.instance
+          .collection('libros_compartidos')
+          .doc(widget.libroId)
+          .get();
+
+      final creadorId = libroSnap['usuarioId'];
+
+      // Enviar notificación si el comentarista NO es el creador
+      if (creadorId != currentUser.uid) {
+        await FirebaseFirestore.instance.collection('notificaciones').add({
+          'usuarioId': creadorId, // destinatario
+          'mensaje':
+              '${currentUser.email} comentó tu libro "${libroSnap['titulo']}"',
+          'libroId': widget.libroId, // 👈 ESTA LÍNEA ES LA CLAVE
+          'leido': false,
+          'fecha': DateTime.now(),
+        });
+      }
+
+      _controller.clear();
+    } catch (e) {
+      print('Error al enviar comentario o notificación: $e');
+    }
   }
 
   @override

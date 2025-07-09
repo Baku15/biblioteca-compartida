@@ -45,14 +45,23 @@ class _EditarNotaScreenState extends State<EditarNotaScreen> {
 
       // Si tiene remoteId → actualiza también en Firestore
       if (notaActualizada.remoteId != null) {
-        await FirebaseFirestore.instance
+        final docRef = FirebaseFirestore.instance
             .collection('notas_lectura_compartidas')
-            .doc(notaActualizada.remoteId)
-            .update({
-          'pagina': notaActualizada.pagina,
-          'contenido': notaActualizada.contenido,
-          'fecha': notaActualizada.fecha.toIso8601String(),
-        });
+            .doc(notaActualizada.remoteId);
+
+        final docSnapshot = await docRef.get();
+
+        if (docSnapshot.exists) {
+          await docRef.update({
+            'pagina': notaActualizada.pagina,
+            'contenido': notaActualizada.contenido,
+            'fecha': notaActualizada.fecha.toIso8601String(),
+          });
+        } else {
+          print('⚠️ Documento no encontrado en Firestore.');
+          // Puedes decidir aquí si vuelves a crearlo:
+          // await docRef.set({ ... });
+        }
       }
 
       setState(() => _guardando = false);

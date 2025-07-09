@@ -14,7 +14,8 @@ import '../../../models/locales/libro_local.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 class MisLibrosScreen extends StatefulWidget {
-  const MisLibrosScreen({super.key});
+  final String usuarioId;
+  const MisLibrosScreen({super.key, required this.usuarioId});
 
   @override
   State<MisLibrosScreen> createState() => _MisLibrosScreenState();
@@ -31,7 +32,7 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
   }
 
   Future<void> _cargarLibros() async {
-    final libros = await _dataSource.getLibros();
+    final libros = await _dataSource.getLibrosPorUsuario(widget.usuarioId);
     if (mounted) {
       setState(() {
         _libros = libros;
@@ -234,45 +235,9 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
                                           IconButton(
                                             icon: const Icon(Icons.delete,
                                                 color: Colors.redAccent),
-                                            onPressed: () async {
-                                              final confirmado =
-                                                  await showDialog<bool>(
-                                                context: context,
-                                                builder: (_) => AlertDialog(
-                                                  title: const Text(
-                                                      "¿Eliminar nota?"),
-                                                  content: const Text(
-                                                      "Esta acción no se puede deshacer."),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                              context, false),
-                                                      child: const Text(
-                                                          "Cancelar"),
-                                                    ),
-                                                    ElevatedButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                              context, true),
-                                                      style: ElevatedButton
-                                                          .styleFrom(
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                      child: const Text(
-                                                          "Eliminar"),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-
-                                              if (confirmado == true) {
-                                                await NotaLecturaDataSource()
-                                                    .deleteNota(nota.id!);
-                                                _mostrarDetallesLibro(
-                                                    context, libro);
-                                              }
+                                            onPressed: () {
+                                              _eliminarNotaConfirmada(
+                                                  context, nota, libro);
                                             },
                                           ),
                                         ],
@@ -358,6 +323,64 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _eliminarNotaConfirmada(
+      BuildContext context, NotaLectura nota, LibroLocal libro) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.white,
+        title: const Text('¿Eliminar nota?'),
+        content: const Text('Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.delete),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context); // cerrar diálogo
+
+              // 🔥 Si la nota fue sincronizada con Firestore
+              if (nota.remoteId != null &&
+                  nota.remoteId!.isNotEmpty &&
+                  libro.remoteId != null &&
+                  libro.remoteId!.isNotEmpty) {
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('libros_compartidos')
+                      .doc(libro.remoteId)
+                      .collection('notas')
+                      .doc(nota.remoteId)
+                      .delete();
+                } catch (e) {
+                  print('❌ Error al borrar nota de Firebase: $e');
+                }
+              }
+
+              // 🧹 Borrar local
+              await NotaLecturaDataSource().deleteNota(nota.id!);
+
+              // ✅ Recargar detalle del libro
+              _mostrarDetallesLibro(context, libro);
+
+              messenger.showSnackBar(
+                SnackBar(
+                  backgroundColor: Colors.red.withOpacity(0.9),
+                  content: const Text('🗒 Nota eliminada'),
+                ),
+              );
+            },
+            label: const Text('Eliminar'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -514,8 +537,11 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          final resultado =
-              await Navigator.pushNamed(context, '/agregar_libro');
+          final resultado = await Navigator.pushNamed(
+            context,
+            '/agregar_libro',
+            arguments: FirebaseAuth.instance.currentUser!.uid, // ✅
+          );
           if (resultado == true) _cargarLibros();
         },
         backgroundColor: const Color(0xFF1976D2),
@@ -565,22 +591,31 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
       // 🔁 Sincronizar notas de este libro
       final notas = await notasDataSource.obtenerNotasPorLibro(libro.id);
       for (final nota in notas) {
-        if (nota.remoteId != null && nota.remoteId!.isNotEmpty) continue;
-
         final notaData = {
           'pagina': nota.pagina,
           'contenido': nota.contenido,
           'fecha': nota.fecha.toIso8601String(),
         };
 
-        final notaDocRef = await FirebaseFirestore.instance
-            .collection('libros_compartidos')
-            .doc(remoteLibroId)
-            .collection('notas')
-            .add(notaData);
+        if (nota.remoteId != null && nota.remoteId!.isNotEmpty) {
+          // Ya sincronizada → actualizar
+          await FirebaseFirestore.instance
+              .collection('libros_compartidos')
+              .doc(remoteLibroId)
+              .collection('notas')
+              .doc(nota.remoteId)
+              .set(notaData); // Usa set() para sobrescribir con los cambios
+        } else {
+          // Nueva nota → agregar
+          final notaDocRef = await FirebaseFirestore.instance
+              .collection('libros_compartidos')
+              .doc(remoteLibroId)
+              .collection('notas')
+              .add(notaData);
 
-        if (nota.id != null) {
-          await notasDataSource.actualizarRemoteId(nota.id!, notaDocRef.id);
+          if (nota.id != null) {
+            await notasDataSource.actualizarRemoteId(nota.id!, notaDocRef.id);
+          }
         }
       }
     }

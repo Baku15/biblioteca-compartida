@@ -1,17 +1,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../../data/local/libro_local_datasource.dart';
+import 'package:flutter_libros/application/libro_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../models/locales/libro_local.dart';
-import 'package:image_picker/image_picker.dart'; //
 
-class AgregarLibroScreen extends StatefulWidget {
-  const AgregarLibroScreen({super.key});
+class AgregarLibroScreen extends ConsumerStatefulWidget {
+  final String usuarioId;
+
+  const AgregarLibroScreen({super.key, required this.usuarioId});
 
   @override
-  State<AgregarLibroScreen> createState() => _AgregarLibroScreenState();
+  ConsumerState<AgregarLibroScreen> createState() => _AgregarLibroScreenState();
 }
 
-class _AgregarLibroScreenState extends State<AgregarLibroScreen> {
+class _AgregarLibroScreenState extends ConsumerState<AgregarLibroScreen> {
   final _resenaController = TextEditingController();
   int _calificacionSeleccionada = 0;
   String _estadoSeleccionado = 'Quiero leer';
@@ -22,8 +25,6 @@ class _AgregarLibroScreenState extends State<AgregarLibroScreen> {
   bool _mostrarCampoOtraCategoria = false;
   final _otraCategoriaController = TextEditingController();
   final _resumenController = TextEditingController();
-
-  final _dataSource = LibroLocalDataSource();
 
   bool _guardando = false;
   XFile? _imagenSeleccionada;
@@ -129,11 +130,7 @@ class _AgregarLibroScreenState extends State<AgregarLibroScreen> {
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
-                items: [
-                  'Quiero leer',
-                  'Leyendo',
-                  'Leído',
-                ].map((estado) {
+                items: ['Quiero leer', 'Leyendo', 'Leído'].map((estado) {
                   return DropdownMenuItem<String>(
                     value: estado,
                     child: Text(estado),
@@ -179,7 +176,6 @@ class _AgregarLibroScreenState extends State<AgregarLibroScreen> {
 
               if (_mostrarCampoOtraCategoria) const SizedBox(height: 16),
 
-              /// Campo "Otra categoría"
               if (_mostrarCampoOtraCategoria)
                 TextFormField(
                   controller: _otraCategoriaController,
@@ -308,13 +304,12 @@ class _AgregarLibroScreenState extends State<AgregarLibroScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _guardando = true);
 
-      // Obtener la categoría según la selección
       final categoriaElegida = _mostrarCampoOtraCategoria
           ? _otraCategoriaController.text.trim()
           : _categoriaSeleccionada ?? '';
 
       final libro = LibroLocal(
-        id: 0, // SQLite lo autogenera
+        id: 0,
         titulo: _tituloController.text.trim(),
         autor: _autorController.text.trim(),
         categoria: categoriaElegida,
@@ -324,11 +319,10 @@ class _AgregarLibroScreenState extends State<AgregarLibroScreen> {
         estadoLectura: _estadoSeleccionado,
         calificacion: _calificacionSeleccionada,
         resena: _resenaController.text.trim(),
+        usuarioId: widget.usuarioId,
       );
 
-      await _dataSource.insertLibro(libro);
-      final todos = await _dataSource.getLibros();
-      print("🔍 Libros en la base de datos: ${todos.length}");
+      await ref.read(libroProvider.notifier).agregarLibro(libro);
 
       setState(() => _guardando = false);
 
