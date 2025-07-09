@@ -35,4 +35,21 @@ class NotaLectura {
         'fecha': fecha.toIso8601String(),
         'remote_id': remoteId,
       };
+  NotaLectura copyWith({
+    int? id,
+    int? libroId,
+    int? pagina,
+    String? contenido,
+    DateTime? fecha,
+    String? remoteId,
+  }) {
+    return NotaLectura(
+      id: id ?? this.id,
+      libroId: libroId ?? this.libroId,
+      pagina: pagina ?? this.pagina,
+      contenido: contenido ?? this.contenido,
+      fecha: fecha ?? this.fecha,
+      remoteId: remoteId ?? this.remoteId,
+    );
+  }
 }

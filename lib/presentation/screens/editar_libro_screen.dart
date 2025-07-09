@@ -79,7 +79,12 @@ class _EditarLibroScreenState extends State<EditarLibroScreen> {
           'autor': libroActualizado.autor,
           'categoria': libroActualizado.categoria,
           'resumen': libroActualizado.resumen,
-          'fechaActualizacion': DateTime.now(),
+          'imagenUrl': libroActualizado
+              .imagenPath, // O la URL real si la subes a Firebase Storage
+          'estadoLectura': libroActualizado.estadoLectura,
+          'resena': libroActualizado.resena,
+          'calificacion': libroActualizado.calificacion,
+          'fechaActualizacion': DateTime.now().toIso8601String(),
         });
       } else {
         // Muestra un aviso opcional si el libro aún no fue compartido

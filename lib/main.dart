@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_libros/models/locales/libro_local.dart';
+import 'package:flutter_libros/models/locales/nota_lectura.dart';
 import 'package:flutter_libros/presentation/screens/agregar_libro_screen.dart';
 import 'package:flutter_libros/presentation/screens/agregar_nota_screen.dart';
 import 'package:flutter_libros/presentation/screens/detalle_libro_compartido_screen.dart';
 import 'package:flutter_libros/presentation/screens/editar_libro_screen.dart';
+import 'package:flutter_libros/presentation/screens/editar_nota_screen.dart';
 import 'package:flutter_libros/presentation/screens/explorar_libros_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -40,6 +42,11 @@ class MyApp extends ConsumerWidget {
       ),
       // 👇 RUTAS REGISTRADAS AQUÍ
       routes: {
+        '/editar_nota': (context) {
+          final nota =
+              ModalRoute.of(context)!.settings.arguments as NotaLectura;
+          return EditarNotaScreen(nota: nota);
+        },
         '/agregar_nota': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as int;
           return AgregarNotaScreen(libroId: args);

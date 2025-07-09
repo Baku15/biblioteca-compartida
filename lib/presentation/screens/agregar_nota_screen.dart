@@ -4,8 +4,14 @@ import '../../../data/local/nota_lectura_datasource.dart';
 
 class AgregarNotaScreen extends StatefulWidget {
   final int libroId;
-  const AgregarNotaScreen({super.key, required this.libroId});
-
+  final String modo; // 'crear' o 'editar'
+  final NotaLectura? nota;
+  const AgregarNotaScreen({
+    super.key,
+    required this.libroId,
+    this.modo = 'crear',
+    this.nota,
+  });
   @override
   State<AgregarNotaScreen> createState() => _AgregarNotaScreenState();
 }

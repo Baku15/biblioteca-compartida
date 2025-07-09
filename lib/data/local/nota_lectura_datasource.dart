@@ -55,4 +55,31 @@ class NotaLecturaDataSource {
     );
     return result.map((e) => NotaLectura.fromMap(e)).toList();
   }
+
+  Future<void> actualizarNota(NotaLectura nota) async {
+    final db =
+        await _dbFuture; // o usa LibroLocalDataSource().database si es tu caso
+
+    await db.update(
+      'notas_lectura',
+      nota.toMap(),
+      where: 'id = ?',
+      whereArgs: [nota.id],
+    );
+  }
+
+  Future<void> deleteNota(int id) async {
+    final db = await _dbFuture;
+    await db.delete('notas_lectura', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> updateNota(NotaLectura nota) async {
+    final db = await _dbFuture;
+    await db.update(
+      'notas_lectura',
+      nota.toMap(),
+      where: 'id = ?',
+      whereArgs: [nota.id],
+    );
+  }
 }

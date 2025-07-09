@@ -142,8 +142,7 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
-
-                  // Boton de Notas
+// boton de Notas
                   const SizedBox(height: 16),
                   FutureBuilder<List<NotaLectura>>(
                     future: _obtenerNotas(libro.id),
@@ -151,6 +150,7 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return const Text("📌 No hay notas aún");
                       }
+
                       final notas = snapshot.data!;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,14 +158,131 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
                           const Text("📝 Notas de lectura:",
                               style: TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          ...notas.map((nota) => ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text("Pág. ${nota.pagina}"),
-                                subtitle: Text(nota.contenido),
-                                trailing: Text(
-                                    DateFormat('dd/MM/yyyy').format(nota.fecha),
-                                    style: const TextStyle(fontSize: 12)),
-                              )),
+                          for (final nota in notas) ...[
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.2),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Página
+                                  Text(
+                                    "Página ${nota.pagina}",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: Colors.indigo,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+
+                                  // Contenido
+                                  Text(
+                                    nota.contenido,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+
+                                  const SizedBox(height: 10),
+
+                                  // Fecha
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        DateFormat('dd/MM/yyyy')
+                                            .format(nota.fecha),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+
+                                      // Botones editar / eliminar
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit,
+                                                color: Colors.orangeAccent),
+                                            onPressed: () async {
+                                              Navigator.pop(
+                                                  context); // cerrar diálogo actual
+                                              final resultado =
+                                                  await Navigator.pushNamed(
+                                                context,
+                                                '/editar_nota',
+                                                arguments: nota,
+                                              );
+
+                                              if (resultado == true) {
+                                                _mostrarDetallesLibro(
+                                                    context, libro); // recargar
+                                              }
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete,
+                                                color: Colors.redAccent),
+                                            onPressed: () async {
+                                              final confirmado =
+                                                  await showDialog<bool>(
+                                                context: context,
+                                                builder: (_) => AlertDialog(
+                                                  title: const Text(
+                                                      "¿Eliminar nota?"),
+                                                  content: const Text(
+                                                      "Esta acción no se puede deshacer."),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context, false),
+                                                      child: const Text(
+                                                          "Cancelar"),
+                                                    ),
+                                                    ElevatedButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context, true),
+                                                      style: ElevatedButton
+                                                          .styleFrom(
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                      ),
+                                                      child: const Text(
+                                                          "Eliminar"),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+
+                                              if (confirmado == true) {
+                                                await NotaLecturaDataSource()
+                                                    .deleteNota(nota.id!);
+                                                _mostrarDetallesLibro(
+                                                    context, libro);
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       );
                     },
