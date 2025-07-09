@@ -9,7 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-    
+
+  path: ^1.9.0  
   flutter_riverpod: ^2.5.1
   firebase_core: ^2.24.2
   firebase_auth: ^4.17.4
@@ -17,6 +18,9 @@ dependencies:
   sqflite: ^2.3.3+1
   path_provider: ^2.1.2
   uuid: ^4.3.3
+  image_picker: ^1.1.0
+  intl: ^0.18.1
+
 
 dev_dependencies:
   flutter_test:

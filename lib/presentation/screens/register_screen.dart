@@ -99,58 +99,45 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                         _passwordController.text.trim(),
                                       );
 
-// Mostrar mensaje elegante
+                                      if (!context.mounted) return;
+
+                                      Navigator.pop(context);
+
+                                      /// Mostramos un mensaje bonito después de volver a Login
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          backgroundColor:
+                                              Colors.green.withOpacity(0.95),
+                                          behavior: SnackBarBehavior.floating,
+                                          margin: const EdgeInsets.all(16),
+                                          content: const Text(
+                                            '✅ Registro exitoso. ¡Ya puedes iniciar sesión!',
+                                            style:
+                                                TextStyle(color: Colors.black),
+                                          ),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      if (!context.mounted) return;
+
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
                                         SnackBar(
                                           backgroundColor:
                                               Colors.white.withOpacity(0.95),
-                                          elevation: 6,
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12)),
-                                          content: Row(
-                                            children: const [
-                                              Icon(Icons.check_circle,
-                                                  color: Colors.green,
-                                                  size: 22),
-                                              SizedBox(width: 10),
-                                              Expanded(
-                                                child: Text(
-                                                  'Registro exitoso. Por favor inicia sesión.',
-                                                  style: TextStyle(
-                                                    color: Colors.black87,
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
                                           behavior: SnackBarBehavior.floating,
-                                          margin: const EdgeInsets.symmetric(
-                                              horizontal: 20, vertical: 10),
-                                          duration: Duration(seconds: 3),
+                                          margin: const EdgeInsets.all(16),
+                                          content: Text(
+                                            '❌ Error: ${e.toString()}',
+                                            style: const TextStyle(
+                                                color: Colors.red),
+                                          ),
                                         ),
                                       );
-
-// Pequeña espera para que el usuario lo vea antes del cambio de pantalla
-                                      await Future.delayed(
-                                          const Duration(milliseconds: 500));
-
-// Redirigir al login
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                const LoginScreen()),
-                                      );
-                                    } catch (e) {
-                                      showCustomSnackbar(
-                                          context, 'Error: ${e.toString()}',
-                                          isError: true);
                                     } finally {
-                                      setState(() => _loading = false);
+                                      if (mounted)
+                                        setState(() => _loading = false);
                                     }
                                   }
                                 },

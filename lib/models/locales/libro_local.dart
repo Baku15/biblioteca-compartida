@@ -5,6 +5,11 @@ class LibroLocal {
   final String categoria;
   final String resumen;
   final DateTime fechaCreacion;
+  final String? imagenPath;
+  final String? estadoLectura;
+  final int? calificacion;
+  final String? resena;
+  final String? remoteId;
 
   LibroLocal({
     required this.id,
@@ -13,8 +18,12 @@ class LibroLocal {
     required this.categoria,
     required this.resumen,
     required this.fechaCreacion,
+    this.imagenPath,
+    required this.estadoLectura,
+    this.calificacion,
+    this.resena,
+    this.remoteId,
   });
-
   Map<String, dynamic> toMap() => {
         'id': id,
         'titulo': titulo,
@@ -22,6 +31,11 @@ class LibroLocal {
         'categoria': categoria,
         'resumen': resumen,
         'fechaCreacion': fechaCreacion.toIso8601String(),
+        'imagenPath': imagenPath,
+        'estadoLectura': estadoLectura,
+        'calificacion': calificacion,
+        'resena': resena,
+        'remote_id': remoteId, // ✅ clave corregida
       };
 
   factory LibroLocal.fromMap(Map<String, dynamic> map) => LibroLocal(
@@ -31,5 +45,38 @@ class LibroLocal {
         categoria: map['categoria'],
         resumen: map['resumen'],
         fechaCreacion: DateTime.parse(map['fechaCreacion']),
+        imagenPath: map['imagenPath'],
+        estadoLectura: map['estadoLectura'] ?? 'Quiero leer',
+        calificacion: map['calificacion'],
+        resena: map['resena'],
+        remoteId: map['remote_id'], // ✅ clave corregida
       );
+
+  LibroLocal copyWith({
+    int? id,
+    String? titulo,
+    String? autor,
+    String? categoria,
+    String? resumen,
+    DateTime? fechaCreacion,
+    String? imagenPath,
+    String? estadoLectura,
+    int? calificacion,
+    String? resena,
+    String? remoteId,
+  }) {
+    return LibroLocal(
+      id: id ?? this.id,
+      titulo: titulo ?? this.titulo,
+      autor: autor ?? this.autor,
+      categoria: categoria ?? this.categoria,
+      resumen: resumen ?? this.resumen,
+      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
+      imagenPath: imagenPath ?? this.imagenPath,
+      estadoLectura: estadoLectura ?? this.estadoLectura,
+      calificacion: calificacion ?? this.calificacion,
+      resena: resena ?? this.resena,
+      remoteId: remoteId ?? this.remoteId,
+    );
+  }
 }
