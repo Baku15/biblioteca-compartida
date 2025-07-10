@@ -28,7 +28,52 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarLibros();
+
+    _descargarLibrosDelUsuario().then((_) async {
+      await _sincronizarConNube(); // 🔄 Auto sincroniza al iniciar
+      _cargarLibros();
+    });
+  }
+
+  Future<void> _descargarLibrosDelUsuario() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final uid = currentUser.uid;
+    final firestore = FirebaseFirestore.instance;
+    final db = LibroLocalDataSource();
+
+    final snapshot = await firestore
+        .collection('libros_compartidos')
+        .where('usuarioId', isEqualTo: uid)
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+
+      // Evita duplicados
+      final librosLocales = await db.getLibros();
+      final yaExiste = librosLocales.any((libro) => libro.remoteId == doc.id);
+      if (yaExiste) continue;
+
+      final libro = LibroLocal(
+        id: 0,
+        titulo: data['titulo'],
+        autor: data['autor'],
+        categoria: data['categoria'],
+        resumen: data['resumen'],
+        fechaCreacion:
+            DateTime.tryParse(data['fechaCreacion']) ?? DateTime.now(),
+        imagenPath: null,
+        estadoLectura: data['estadoLectura'],
+        calificacion: data['calificacion'],
+        resena: data['resena'],
+        remoteId: doc.id,
+        usuarioId: uid,
+      );
+
+      await db.insertLibro(libro);
+    }
   }
 
   Future<void> _cargarLibros() async {
