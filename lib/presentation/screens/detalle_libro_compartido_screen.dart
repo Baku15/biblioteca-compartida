@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_libros/presentation/widgets/comentarios_widget.dart';
 
 class DetalleLibroCompartidoScreen extends StatelessWidget {
   final DocumentSnapshot libro;
@@ -123,7 +122,38 @@ class DetalleLibroCompartidoScreen extends StatelessWidget {
             const Text("💬 Comentarios", style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
 
-            ComentariosWidget(libroId: libroId),
+            SizedBox(
+              height: 300, // Altura fija para permitir scroll de comentarios
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('libros_compartidos')
+                    .doc(libroId)
+                    .collection('comentarios')
+                    .orderBy('fecha', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData)
+                    return const CircularProgressIndicator();
+                  final comentarios = snapshot.data!.docs;
+                  if (comentarios.isEmpty) {
+                    return const Center(child: Text("Sin comentarios aún."));
+                  }
+                  return ListView.builder(
+                    itemCount: comentarios.length,
+                    itemBuilder: (context, index) {
+                      final com = comentarios[index];
+                      return ListTile(
+                        title: Text(com['contenido']),
+                        subtitle: Text("👤 ${com['usuario']}"),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 12),
+            ComentarioInput(libroId: libroId),
             const SizedBox(height: 20),
           ],
         ),

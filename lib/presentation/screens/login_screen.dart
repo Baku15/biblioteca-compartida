@@ -20,7 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.read(authServiceProvider);
+    final auth = ref.watch(authServiceProvider); // en lugar de .read
 
     return Scaffold(
       body: Stack(

@@ -1,18 +1,16 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_libros/application/libros_compartidos_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ExplorarLibrosScreen extends StatefulWidget {
+class ExplorarLibrosScreen extends ConsumerWidget {
   const ExplorarLibrosScreen({super.key});
 
   @override
-  State<ExplorarLibrosScreen> createState() => _ExplorarLibrosScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filtro = ref.watch(filtroLibrosCompartidosProvider);
+    final librosAsync = ref.watch(librosCompartidosStreamProvider);
 
-class _ExplorarLibrosScreenState extends State<ExplorarLibrosScreen> {
-  String _filtro = '';
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Explorar Biblioteca"),
@@ -29,38 +27,18 @@ class _ExplorarLibrosScreenState extends State<ExplorarLibrosScreen> {
                 border: OutlineInputBorder(),
               ),
               onChanged: (value) {
-                setState(() {
-                  _filtro = value.toLowerCase();
-                });
+                // Actualiza el filtro sin usar setState
+                ref.read(filtroLibrosCompartidosProvider.notifier).state =
+                    value;
               },
             ),
           ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('libros_compartidos')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text("Error al cargar libros"));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final docs = snapshot.data!.docs;
-
-                // Filtrar localmente por título o autor
-                final librosFiltrados = docs.where((doc) {
-                  final titulo = (doc['titulo'] ?? '').toString().toLowerCase();
-                  final autor = (doc['autor'] ?? '').toString().toLowerCase();
-                  return titulo.contains(_filtro) || autor.contains(_filtro);
-                }).toList();
-
+            child: librosAsync.when(
+              data: (librosFiltrados) {
                 if (librosFiltrados.isEmpty) {
                   return const Center(child: Text("No se encontraron libros."));
                 }
-
                 return ListView.builder(
                   itemCount: librosFiltrados.length,
                   itemBuilder: (context, index) {
@@ -81,6 +59,8 @@ class _ExplorarLibrosScreenState extends State<ExplorarLibrosScreen> {
                   },
                 );
               },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(child: Text("Error: $error")),
             ),
           ),
         ],

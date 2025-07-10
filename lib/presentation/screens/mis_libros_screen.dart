@@ -282,35 +282,6 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
                     },
                   ),
 
-                  // Historial boton
-                  FutureBuilder<HistorialLectura?>(
-                    future: HistorialLecturaDataSource()
-                        .obtenerHistorialPorLibro(libro.id),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const SizedBox();
-                      final hist = snapshot.data!;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 16),
-                          Text("📖 Última página leída: ${hist.ultimaPagina}",
-                              style: const TextStyle(fontSize: 15)),
-                          Text(
-                              "⏱ Actualizado: ${DateFormat('dd/MM/yyyy').format(hist.fechaActualizacion)}",
-                              style: const TextStyle(
-                                  fontSize: 13, color: Colors.grey)),
-                          const SizedBox(height: 8),
-                          ElevatedButton.icon(
-                            onPressed: () =>
-                                _actualizarHistorialLectura(libro.id),
-                            icon: const Icon(Icons.edit),
-                            label: const Text("Actualizar progreso"),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-
                   // Codigo de cerrar boton
                   const SizedBox(height: 20),
                   TextButton(
@@ -554,6 +525,16 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
   Future<void> _sincronizarConNube() async {
     final librosLocales = await _dataSource.getLibros();
     final notasDataSource = NotaLecturaDataSource();
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ Usuario no autenticado')),
+      );
+      return;
+    }
+
+    final uid = currentUser.uid;
 
     for (final libro in librosLocales) {
       final libroData = {
@@ -561,7 +542,7 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
         'autor': libro.autor,
         'resumen': libro.resumen,
         'categoria': libro.categoria,
-        'usuarioId': FirebaseAuth.instance.currentUser!.uid,
+        'usuarioId': uid,
         'estadoLectura': libro.estadoLectura,
         'imagenUrl': null,
         'calificacion': libro.calificacion,
@@ -588,13 +569,14 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
         await _dataSource.actualizarRemoteId(libro.id, remoteLibroId);
       }
 
-      // 🔁 Sincronizar notas de este libro
+      // 🔁 Sincronizar notas
       final notas = await notasDataSource.obtenerNotasPorLibro(libro.id);
       for (final nota in notas) {
         final notaData = {
           'pagina': nota.pagina,
           'contenido': nota.contenido,
           'fecha': nota.fecha.toIso8601String(),
+          'usuarioId': uid,
         };
 
         if (nota.remoteId != null && nota.remoteId!.isNotEmpty) {
@@ -604,7 +586,7 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
               .doc(remoteLibroId)
               .collection('notas')
               .doc(nota.remoteId)
-              .set(notaData); // Usa set() para sobrescribir con los cambios
+              .set(notaData);
         } else {
           // Nueva nota → agregar
           final notaDocRef = await FirebaseFirestore.instance
@@ -620,52 +602,13 @@ class _MisLibrosScreenState extends State<MisLibrosScreen> {
       }
     }
 
+    // ✅ Mostrar una única notificación al final
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('✅ Libros y notas sincronizados'),
+        content: const Text('✅ Todos los libros y notas fueron sincronizados'),
         backgroundColor: Colors.green.withOpacity(0.95),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  Future<void> _actualizarHistorialLectura(int libroId) async {
-    final controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("📖 Actualizar progreso de lectura"),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: "Última página leída"),
-        ),
-        actions: [
-          TextButton(
-            child: const Text("Cancelar"),
-            onPressed: () => Navigator.pop(context),
-          ),
-          ElevatedButton(
-            child: const Text("Guardar"),
-            onPressed: () async {
-              final pagina = int.tryParse(controller.text);
-              if (pagina != null) {
-                final historial = HistorialLectura(
-                  libroId: libroId,
-                  ultimaPagina: pagina,
-                  fechaActualizacion: DateTime.now(),
-                );
-                await HistorialLecturaDataSource().guardarHistorial(historial);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text("✅ Progreso actualizado"),
-                ));
-              }
-            },
-          ),
-        ],
       ),
     );
   }

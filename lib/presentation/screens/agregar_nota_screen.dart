@@ -1,66 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_libros/application/nota_provider.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/locales/nota_lectura.dart';
+import '../../../data/local/nota_lectura_datasource.dart';
 
-class AgregarNotaScreen extends ConsumerStatefulWidget {
+class AgregarNotaScreen extends StatefulWidget {
   final int libroId;
   final String modo; // 'crear' o 'editar'
   final NotaLectura? nota;
-
   const AgregarNotaScreen({
     super.key,
     required this.libroId,
     this.modo = 'crear',
     this.nota,
   });
-
   @override
-  ConsumerState<AgregarNotaScreen> createState() => _AgregarNotaScreenState();
+  State<AgregarNotaScreen> createState() => _AgregarNotaScreenState();
 }
 
-class _AgregarNotaScreenState extends ConsumerState<AgregarNotaScreen> {
+class _AgregarNotaScreenState extends State<AgregarNotaScreen> {
   final _paginaController = TextEditingController();
   final _contenidoController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _guardando = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.modo == 'editar' && widget.nota != null) {
-      _paginaController.text = widget.nota!.pagina.toString();
-      _contenidoController.text = widget.nota!.contenido;
-    }
-  }
 
   Future<void> _guardarNota() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
 
     final nota = NotaLectura(
-      id: widget.modo == 'editar' ? widget.nota!.id : 0,
       libroId: widget.libroId,
       pagina: int.parse(_paginaController.text),
       contenido: _contenidoController.text.trim(),
       fecha: DateTime.now(),
     );
 
-    if (widget.modo == 'editar') {
-      await ref.read(notaProvider.notifier).editarNota(nota);
-    } else {
-      await ref.read(notaProvider.notifier).agregarNota(nota);
+    await NotaLecturaDataSource().insertarNota(nota);
+    if (mounted) {
+      Navigator.pop(context, true);
     }
-
-    if (mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-          title:
-              Text(widget.modo == 'editar' ? "Editar Nota" : "Agregar Nota")),
+      appBar: AppBar(title: const Text("Agregar Nota")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -88,9 +70,7 @@ class _AgregarNotaScreenState extends ConsumerState<AgregarNotaScreen> {
                   ? const CircularProgressIndicator()
                   : ElevatedButton.icon(
                       icon: const Icon(Icons.save),
-                      label: Text(widget.modo == 'editar'
-                          ? "Guardar Cambios"
-                          : "Guardar Nota"),
+                      label: const Text("Guardar Nota"),
                       onPressed: _guardarNota,
                     ),
             ],
